@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import Fastify from 'fastify';
+import cors from '@fastify/cors';
 import fastifyJwt from '@fastify/jwt';
 import fastifyWebsocket from '@fastify/websocket';
 import authRoutes from './routes/auth.js';
@@ -14,6 +15,10 @@ const fastify = Fastify({
 });
 
 // Enregistrement des plugins
+await fastify.register(cors, {
+  origin: '*'
+});
+
 await fastify.register(fastifyJwt, {
   secret: process.env.JWT_SECRET
 });
