@@ -1,0 +1,228 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           Int             @id @default(autoincrement())
+  email        String          @unique
+  password     String
+  createdAt    DateTime        @default(now())
+
+  // Relations
+  workspaces   UserWorkspace[]
+  pageVersions PageVersion[]
+}
+
+model Block {
+  id            Int      @id @default(autoincrement())
+  name          String
+  documentation String   @db.Text
+  usage         String?  @db.Text
+  version       String   @default("development")
+  type          String   @default("content")
+  createdAt     DateTime @default(now())
+}
+
+model Prompt {
+  id           Int      @id @default(autoincrement())
+  name         String   @db.VarChar(100)
+  content      String   @db.Text
+  versionTag   String   @map("version_tag") @db.VarChar(20)
+  isProduction Boolean  @default(false) @map("is_production")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@unique([name, versionTag], name: "uc_prompt_version")
+  @@index([name, isProduction], name: "idx_name_production_access")
+  @@map("prompts")
+}
+
+// ============================================
+// Workspace & Website Management
+// ============================================
+
+enum WorkspaceRole {
+  OWNER
+  ADMIN
+  EDITOR
+  VIEWER
+}
+
+enum WebsiteState {
+  STRATEGIE_DIGITALE
+  CHARTE_GRAPHIQUE
+  WIREFRAME
+  STRATEGIE_SEO
+  GENERATE_CONTENT
+  READY_TO_BE_PUBLISH
+  PUBLISHED
+  ARCHIVED
+  UNPUBLISHED
+}
+
+enum PageState {
+  DRAFT
+  PUBLISH
+}
+
+model Workspace {
+  id        Int       @id @default(autoincrement())
+  name      String
+  settings  Json?
+  isActive  Boolean   @default(true) @map("is_active")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  // Relations
+  users    UserWorkspace[]
+  websites Website[]
+
+  @@index([isActive])
+  @@index([deletedAt])
+  @@map("workspaces")
+}
+
+model UserWorkspace {
+  id          Int           @id @default(autoincrement())
+  userId      Int           @map("user_id")
+  workspaceId Int           @map("workspace_id")
+  role        WorkspaceRole @default(VIEWER)
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @updatedAt @map("updated_at")
+
+  // Relations
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, workspaceId])
+  @@index([workspaceId])
+  @@map("user_workspaces")
+}
+
+model Website {
+  id          Int           @id @default(autoincrement())
+  name        String
+  description String?       @db.Text
+  state       WebsiteState  @default(STRATEGIE_DIGITALE)
+  workspaceId Int           @map("workspace_id")
+  domain      String?
+  faviconUrl  String?       @map("favicon_url")
+  settings    Json?
+  publishedAt DateTime?     @map("published_at")
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @updatedAt @map("updated_at")
+  deletedAt   DateTime?     @map("deleted_at")
+
+  // Relations
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  pages     Page[]
+  chats     Chat[]
+  messages  Message[]
+
+  @@index([workspaceId])
+  @@index([state])
+  @@index([deletedAt])
+  @@map("websites")
+}
+
+model Page {
+  id              Int        @id @default(autoincrement())
+  name            String
+  slug            String
+  structure       Json?
+  websiteId       Int        @map("website_id")
+  parentId        Int?       @map("parent_id")
+  state           PageState  @default(DRAFT)
+  lang            String     @default("fr") @db.VarChar(10)
+  isHomepage      Boolean    @default(false) @map("is_homepage")
+  metaTitle       String?    @map("meta_title")
+  metaDescription String?    @map("meta_description") @db.Text
+  metaImageUrl    String?    @map("meta_image_url")
+  publishedAt     DateTime?  @map("published_at")
+  createdAt       DateTime   @default(now()) @map("created_at")
+  updatedAt       DateTime   @updatedAt @map("updated_at")
+  deletedAt       DateTime?  @map("deleted_at")
+
+  // Relations
+  website  Website       @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+  parent   Page?         @relation("PageHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  children Page[]        @relation("PageHierarchy")
+  versions PageVersion[]
+
+  @@unique([websiteId, slug])
+  @@index([websiteId])
+  @@index([parentId])
+  @@index([state])
+  @@index([lang])
+  @@index([deletedAt])
+  @@map("pages")
+}
+
+model PageVersion {
+  id              Int       @id @default(autoincrement())
+  pageId          Int       @map("page_id")
+  versionNumber   Int       @map("version_number")
+  name            String
+  slug            String
+  structure       Json?
+  state           PageState
+  lang            String    @db.VarChar(10)
+  metaTitle       String?   @map("meta_title")
+  metaDescription String?   @map("meta_description") @db.Text
+  metaImageUrl    String?   @map("meta_image_url")
+  createdBy       Int?      @map("created_by")
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  // Relations
+  page    Page  @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  creator User? @relation(fields: [createdBy], references: [id], onDelete: SetNull)
+
+  @@unique([pageId, versionNumber])
+  @@index([pageId])
+  @@map("page_versions")
+}
+
+// ============================================
+// Chat & Messaging
+// ============================================
+
+model Chat {
+  id        Int       @id @default(autoincrement())
+  websiteId Int       @map("website_id")
+  flow      String
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  website  Website   @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+  messages Message[]
+
+  @@index([websiteId])
+  @@map("chats")
+}
+
+model Message {
+  id        Int      @id @default(autoincrement())
+  chatId    Int      @map("chat_id")
+  websiteId Int      @map("website_id")
+  message   String   @db.Text
+  type      String
+  usage     Json?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  chat    Chat    @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  website Website @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+
+  @@index([chatId])
+  @@index([websiteId])
+  @@map("messages")
+}
