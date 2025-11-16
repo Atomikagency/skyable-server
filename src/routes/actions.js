@@ -141,7 +141,7 @@ export default async function actionsRoutes(fastify) {
           body: formData
         });
       } else {
-        // JSON standard
+        // JSON standard (même si la requête originale était multipart sans fichiers)
         response = await fetch(n8nUrl, {
           method: 'POST',
           headers: {

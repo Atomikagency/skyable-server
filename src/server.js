@@ -6,6 +6,8 @@ import fastifyWebsocket from '@fastify/websocket';
 import multipart from '@fastify/multipart';
 import authRoutes from './routes/auth.js';
 import actionsRoutes from './routes/actions.js';
+import socketRoutes from './routes/socket.js';
+import adminRoutes from './routes/admin.js';
 
 // Configuration du serveur
 const PORT = process.env.PORT || 3000;
@@ -48,6 +50,8 @@ fastify.get('/', async () => {
 // Enregistrement des routes
 await fastify.register(authRoutes);
 await fastify.register(actionsRoutes);
+await fastify.register(socketRoutes);
+await fastify.register(adminRoutes);
 
 // Démarrage du serveur
 try {
