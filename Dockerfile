@@ -3,17 +3,17 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Install dependencies for native modules (bcrypt)
+# 1. Installer les dépendances natives (python3, make, g++)
 RUN apk add --no-cache python3 make g++
 
-# Copy package files
+# Copier package files
 COPY package*.json ./
 COPY prisma ./prisma/
 
-# Install all dependencies (including devDependencies for prisma)
+# Installer toutes les dépendances
 RUN npm ci
 
-# Generate Prisma client
+# 2. Générer le client Prisma
 RUN npx prisma generate
 
 # Production stage
@@ -21,28 +21,26 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-# Install runtime dependencies for bcrypt
+# Installer les dépendances runtime pour bcrypt et les libs générales d'Alpine
 RUN apk add --no-cache libc6-compat
 
-# Copy package files
+# Copier package files et installer les dépendances de production
 COPY package*.json ./
-
-# Install production dependencies only
 RUN npm ci --only=production
 
-# Copy Prisma schema and generated client from builder
+# 3. Copier les engines Prisma générés depuis le builder
+# /app/node_modules/.prisma contient les engines spécifiques générés
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
-COPY prisma ./prisma/
 
-# Copy application source
-COPY src ./src/
+# Copier application source et autres fichiers
+COPY . .
 
-# Create non-root user
+# Créer l'utilisateur non-root
 RUN addgroup -g 1001 -S nodejs && \
     adduser -S nodejs -u 1001
 
-# Change ownership
+# Changer ownership
 RUN chown -R nodejs:nodejs /app
 
 USER nodejs
