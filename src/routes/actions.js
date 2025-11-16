@@ -143,12 +143,21 @@ export default async function actionsRoutes(fastify) {
         });
       }
 
+      // Convertit workspace_id en entier (les query params sont des strings)
+      const workspaceIdInt = parseInt(workspace_id, 10);
+
+      if (isNaN(workspaceIdInt)) {
+        return reply.code(400).send({
+          error: 'workspace_id doit être un nombre valide'
+        });
+      }
+
       // Vérifie que l'utilisateur a accès au workspace
       const userWorkspace = await prisma.userWorkspace.findUnique({
         where: {
           userId_workspaceId: {
             userId: user.userId,
-            workspaceId: workspace_id
+            workspaceId: workspaceIdInt
           }
         }
       });
