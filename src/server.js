@@ -4,6 +4,7 @@ import cors from '@fastify/cors';
 import fastifyJwt from '@fastify/jwt';
 import fastifyWebsocket from '@fastify/websocket';
 import multipart from '@fastify/multipart';
+import formbody from '@fastify/formbody';
 import authRoutes from './routes/auth.js';
 import actionsRoutes from './routes/actions.js';
 import socketRoutes from './routes/socket.js';
@@ -33,6 +34,8 @@ await fastify.register(multipart, {
     fileSize: 10 * 1024 * 1024 // 10MB max
   }
 });
+
+await fastify.register(formbody);
 
 // Route de test
 fastify.get('/', async () => {
